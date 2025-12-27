@@ -19,7 +19,7 @@ private:
             new(new_el) T(std::move(*old_el));
         else {
             new (new_el) T(*old_el);
-            (old_el)->~T();
+            (old_el).T~;
         }
     }
 
@@ -83,8 +83,20 @@ public:
 
     DynamicArray& operator=(DynamicArray&& arr) {
         if (this != &arr) {
-            this->~DynamicArray();
-            new (this) DynamicArray(std::move(arr));
+            if (buf_) {
+                for (int i = 0; i < length_; i++)
+                    buf_[i].~T();
+                free(buf_);
+            }
+            
+            buf_ = arr.buf_;
+            size_ = arr.size_;
+            capacity_ = arr.capacity_;
+
+            arr.buf_ = nullptr;
+            arr.size_ = 0;
+            arr.capacity_ = 0;
+
         }
 
         return *this;
@@ -104,7 +116,7 @@ public:
 
         for (int i = length_; i > index; i--) {
             custom_move(buf_ + i, buf_ + i - 1);
-            buf_[i - 1].~T();
+            buf[i - 1].~T();
         }
 
         new (buf_ + index) T(value);
@@ -120,7 +132,11 @@ public:
         buf_[index].~T();
 
         for (int i = index; i < length_ - 1; i++) {
-            custom_move(buf_ + i, buf_ + i + 1);
+            if (std::is_move_constructible_v<T>)
+                new(new_el) T(std::move(*old_el));
+            else {
+                new (new_el) T(*old_el);
+            }
             buf_[i + 1].~T();
         }
 
